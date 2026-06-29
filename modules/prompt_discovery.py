@@ -46,11 +46,10 @@ Question:
 {question}
 """
 
-    response = gemini_model.generate_content(
-        prompt
-    )
+    response = gemini_model.generate_content(prompt)
 
     return response.text.strip()
+
 
 def normalize_topic(topic):
 
@@ -103,9 +102,7 @@ Business Topic:
 {topic}
 """
 
-    response = gemini_model.generate_content(
-        prompt
-    )
+    response = gemini_model.generate_content(prompt)
 
     topics = []
 
@@ -118,8 +115,8 @@ Business Topic:
 
         line = (
             line.replace("-", "")
-                .replace("*", "")
-                .strip()
+            .replace("*", "")
+            .strip()
         )
 
         if (
@@ -156,9 +153,7 @@ def get_google_trends_queries(topic):
                 and not top_df.empty
             ):
 
-                print(
-                    f"Google Trends topic found: {topic}"
-                )
+                print(f"Google Trends topic found: {topic}")
 
                 return top_df, topic
 
@@ -167,33 +162,20 @@ def get_google_trends_queries(topic):
         if "429" in str(e):
 
             raise RuntimeError(
-                "Google Trends rate limit hit "
-                "(HTTP 429). "
-                "Use cached measurement_queries.csv "
-                "or wait before retrying."
+                "Google Trends rate limit hit (HTTP 429)."
             )
 
-    print(
-        f"No Trends data for: {topic}"
-    )
+    print(f"No Trends data for: {topic}")
 
-    candidate_topics = normalize_topic(
-        topic
-    )
+    candidate_topics = normalize_topic(topic)
 
-    print(
-        f"Candidate topics: "
-        f"{candidate_topics}"
-    )
+    print(f"Candidate topics: {candidate_topics}")
 
     for candidate_topic in candidate_topics:
 
         try:
 
-            print(
-                f"Trying normalized topic: "
-                f"{candidate_topic}"
-            )
+            print(f"Trying normalized topic: {candidate_topic}")
 
             time.sleep(2)
 
@@ -202,20 +184,14 @@ def get_google_trends_queries(topic):
                 timeframe="today 12-m"
             )
 
-            related_queries = (
-                pytrends.related_queries()
-            )
+            related_queries = pytrends.related_queries()
 
             if (
                 candidate_topic in related_queries
-                and related_queries[
-                    candidate_topic
-                ] is not None
+                and related_queries[candidate_topic] is not None
             ):
 
-                top_df = related_queries[
-                    candidate_topic
-                ]["top"]
+                top_df = related_queries[candidate_topic]["top"]
 
                 if (
                     top_df is not None
@@ -223,75 +199,48 @@ def get_google_trends_queries(topic):
                 ):
 
                     print(
-                        f"Using normalized topic: "
-                        f"{candidate_topic}"
+                        f"Using normalized topic: {candidate_topic}"
                     )
 
-                    return (
-                        top_df,
-                        candidate_topic
-                    )
+                    return top_df, candidate_topic
 
         except Exception as e:
 
             if "429" in str(e):
 
                 raise RuntimeError(
-                    "Google Trends rate limit hit "
-                    "(HTTP 429). "
-                    "Use cached measurement_queries.csv "
-                    "or wait before retrying."
+                    "Google Trends rate limit hit (HTTP 429)."
                 )
 
-            print(
-                f"Failed for "
-                f"{candidate_topic}: "
-                f"{e}"
-            )
+            print(f"Failed for {candidate_topic}: {e}")
 
     raise ValueError(
-        f"No Google Trends data found "
-        f"for '{topic}'. "
-        f"All candidate topics returned "
-        f"empty results."
+        f"No Google Trends data found for '{topic}'."
     )
-
-import pandas as pd
 
 
 def run_prompt_discovery(question):
 
     print("Step 1 - Extracting business topic...")
 
-    business_topic = extract_business_topic(
-        question
-    )
+    business_topic = extract_business_topic(question)
 
-    print(
-        f"Business Topic: {business_topic}"
-    )
-
+    print(f"Business Topic: {business_topic}")
 
     print("Step 2 - Retrieving Google Trends queries...")
 
-    top_df, trends_topic = (
-        get_google_trends_queries(
-            business_topic
-        )
+    top_df, trends_topic = get_google_trends_queries(
+        business_topic
     )
 
-    print(
-        f"Google Trends Topic: {trends_topic}"
-    )
+    print(f"Google Trends Topic: {trends_topic}")
 
-
-    queries = top_df["query"].tolist()
-
+    queries = top_df["query"].head(5).tolist()
 
     prompt = f"""
 You are helping with GEO prompt discovery.
 
-For each query, determine whether it should be
+For each query below, determine whether it should be
 used for GEO visibility measurement.
 
 REMOVE if:
@@ -312,11 +261,7 @@ Queries:
 {chr(10).join(queries)}
 """
 
-
-    response = gemini_model.generate_content(
-        prompt
-    )
-
+    response = gemini_model.generate_content(prompt)
 
     kept_queries = [
 
@@ -328,19 +273,22 @@ Queries:
 
     ]
 
+    measurement_queries = top_df[
+        top_df["query"].isin(
+            kept_queries
+        )
+    ].head(3)
 
-   output_file = os.path.join(
-       PROJECT_DIR,
-       "measurement_queries.csv"
-   )
-    
+    output_file = os.path.join(
+        PROJECT_DIR,
+        "measurement_queries.csv"
+    )
+
     measurement_queries.to_csv(
         output_file,
         index=False
     )
 
-    print(
-        f"Saved: {output_file}"
-    )
+    print(f"Saved: {output_file}")
 
     return measurement_queries

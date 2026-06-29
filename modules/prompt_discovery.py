@@ -329,26 +329,18 @@ Queries:
     ]
 
 
-    from config.settings import PROJECT_DIR
-    import os
-
+   output_file = os.path.join(
+       PROJECT_DIR,
+       "measurement_queries.csv"
+   )
+    
     measurement_queries.to_csv(
-        os.path.join(
-            PROJECT_DIR,
-            "measurement_queries.csv"
-        ),
+        output_file,
         index=False
     )
-
-    measurement_queries.to_csv(
-        "measurement_queries.csv",
-        index=False
-    )
-
 
     print(
-        "measurement_queries.csv saved"
+        f"Saved: {output_file}"
     )
-
 
     return measurement_queries

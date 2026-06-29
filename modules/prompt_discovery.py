@@ -42,3 +42,83 @@ Question:
     )
 
     return response.text.strip()
+
+def normalize_topic(topic):
+
+    prompt = f"""
+You are helping with GEO prompt discovery.
+
+Convert the business topic into Google Trends
+search topics that consumers would actually search.
+
+Requirements:
+- Preserve meaning.
+- Stay in the same market.
+- Use common consumer language.
+- Prefer phrases people actually search.
+- Avoid technical terminology.
+- Return the most commonly searched phrase first.
+- One topic per line.
+- No bullets.
+- No numbering.
+
+Examples:
+
+Business Topic:
+rideshare services
+
+Output:
+ride sharing
+ride hailing
+rideshare
+
+Business Topic:
+international money transfer
+
+Output:
+money transfer
+send money internationally
+international transfer
+
+Business Topic:
+graphic design software
+
+Output:
+graphic design
+design software
+graphic design tools
+
+Now generate topics for:
+
+Business Topic:
+{topic}
+"""
+
+    response = gemini_model.generate_content(
+        prompt
+    )
+
+    topics = []
+
+    for line in response.text.split("\n"):
+
+        line = line.strip()
+
+        if not line:
+            continue
+
+        line = (
+            line.replace("-", "")
+                .replace("*", "")
+                .strip()
+        )
+
+        if (
+            line.lower().startswith("output")
+            or line.lower().startswith("business topic")
+        ):
+            continue
+
+        topics.append(line)
+
+    return topics[:3]

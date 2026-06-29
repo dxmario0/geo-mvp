@@ -1,4 +1,9 @@
-from config.settings import gemini_model
+import time
+
+from config.settings import (
+    gemini_model,
+    pytrends
+)
 
 
 def extract_business_topic(question):
@@ -122,3 +127,127 @@ Business Topic:
         topics.append(line)
 
     return topics[:3]
+
+
+def get_google_trends_queries(topic):
+
+    try:
+
+        pytrends.build_payload(
+            [topic],
+            timeframe="today 12-m"
+        )
+
+        related_queries = pytrends.related_queries()
+
+        if (
+            topic in related_queries
+            and related_queries[topic] is not None
+        ):
+
+            top_df = related_queries[topic]["top"]
+
+            if (
+                top_df is not None
+                and not top_df.empty
+            ):
+
+                print(
+                    f"Google Trends topic found: {topic}"
+                )
+
+                return top_df, topic
+
+    except Exception as e:
+
+        if "429" in str(e):
+
+            raise RuntimeError(
+                "Google Trends rate limit hit "
+                "(HTTP 429). "
+                "Use cached measurement_queries.csv "
+                "or wait before retrying."
+            )
+
+    print(
+        f"No Trends data for: {topic}"
+    )
+
+    candidate_topics = normalize_topic(
+        topic
+    )
+
+    print(
+        f"Candidate topics: "
+        f"{candidate_topics}"
+    )
+
+    for candidate_topic in candidate_topics:
+
+        try:
+
+            print(
+                f"Trying normalized topic: "
+                f"{candidate_topic}"
+            )
+
+            time.sleep(2)
+
+            pytrends.build_payload(
+                [candidate_topic],
+                timeframe="today 12-m"
+            )
+
+            related_queries = (
+                pytrends.related_queries()
+            )
+
+            if (
+                candidate_topic in related_queries
+                and related_queries[
+                    candidate_topic
+                ] is not None
+            ):
+
+                top_df = related_queries[
+                    candidate_topic
+                ]["top"]
+
+                if (
+                    top_df is not None
+                    and not top_df.empty
+                ):
+
+                    print(
+                        f"Using normalized topic: "
+                        f"{candidate_topic}"
+                    )
+
+                    return (
+                        top_df,
+                        candidate_topic
+                    )
+
+        except Exception as e:
+
+            if "429" in str(e):
+
+                raise RuntimeError(
+                    "Google Trends rate limit hit "
+                    "(HTTP 429). "
+                    "Use cached measurement_queries.csv "
+                    "or wait before retrying."
+                )
+
+            print(
+                f"Failed for "
+                f"{candidate_topic}: "
+                f"{e}"
+            )
+
+    raise ValueError(
+        f"No Google Trends data found "
+        f"for '{topic}'. "
+        f"All candidate topics returned "
+        f"empty results."
+    )

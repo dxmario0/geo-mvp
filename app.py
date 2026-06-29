@@ -1,5 +1,8 @@
 import streamlit as st
 
+from pipeline import run_geo_pipeline
+
+
 st.set_page_config(
     page_title="GEO Analyzer",
     page_icon="📊",
@@ -19,9 +22,13 @@ if st.button("Run GEO Analysis"):
 
     if question.strip():
 
-        st.success(
-            f"Running GEO analysis for:\n\n{question}"
-        )
+        with st.spinner("Running GEO pipeline..."):
+
+            result = run_geo_pipeline(question)
+
+        st.success("Prompt Discovery completed!")
+
+        st.write(result)
 
     else:
 
